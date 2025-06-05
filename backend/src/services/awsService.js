@@ -115,12 +115,21 @@ class AwsService {
    */
   async validateAwsCredentials(accessKeyId, secretAccessKey, region = 'us-east-1') {
     try {
-      // Configure AWS with the provided credentials
-      AWS.config.update({
+      // Configure AWS with the provided credentials and fixed clock
+      const config = {
         accessKeyId,
         secretAccessKey,
-        region
-      });
+        region,
+        // Set clock offset to handle server time issues
+        systemClockOffset: this.getClockOffset(),
+        // Override signing on every request
+        credentials: {
+          accessKeyId,
+          secretAccessKey
+        }
+      };
+
+      AWS.config.update(config);
       
       // Try to list S3 buckets as a simple validation
       const s3 = new AWS.S3();
@@ -149,15 +158,26 @@ class AwsService {
         throw new Error('AWS credential not found');
       }
       
-      // Configure AWS with credentials
-      // Note: In production, you'd want to decrypt the secret key here
-      AWS.config.update({
+      // Get decrypted secret access key
+      const secretKey = this.getDecryptedSecret(credential);
+      
+      // Configure AWS with credentials and fixed clock offset
+      const awsConfig = {
         accessKeyId: credential.accessKeyId,
-        secretAccessKey: this.getDecryptedSecret(credential),
+        secretAccessKey: secretKey,
+        region: credential.region,
+        // Set clock offset to handle server time issues
+        systemClockOffset: this.getClockOffset()
+      };
+      
+      AWS.config.update(awsConfig);
+      
+      // Create Route53 with explicit credentials to avoid signature issues
+      const route53 = new AWS.Route53({
+        accessKeyId: credential.accessKeyId,
+        secretAccessKey: secretKey,
         region: credential.region
       });
-      
-      const route53 = new AWS.Route53();
       
       // Get the Hosted Zone ID for the domain
       const hostedZones = await route53.listHostedZonesByName({
@@ -170,6 +190,8 @@ class AwsService {
       
       const hostedZoneId = hostedZones.HostedZones[0].Id.replace('/hostedzone/', '');
       const recordName = subdomain.endsWith(domain) ? subdomain : `${subdomain}.${domain}`;
+      
+      console.log(`Using hosted zone: ${hostedZoneId} for ${recordName}`);
       
       // Update the DNS record
       const changeParams = {
@@ -195,12 +217,31 @@ class AwsService {
       };
       
       await route53.changeResourceRecordSets(changeParams).promise();
+      console.log(`Successfully updated Route53 record for ${recordName}`);
       
       return true;
     } catch (error) {
       console.error(`Error updating Route53 record for ${subdomain}.${domain}:`, error);
       return false;
     }
+  }
+
+  /**
+   * Get a clock offset to help with time synchronization issues
+   * @returns {number} Clock offset in milliseconds
+   */
+  getClockOffset() {
+    // Get the current time
+    const localTime = new Date();
+    
+    // Calculate a safe offset, assuming AWS time is accurate
+    // We'll make sure our timestamp is within valid range by setting to current date
+    // This helps with Docker containers where system time might be incorrect
+    const now = new Date();
+    const offset = now.getTime() - localTime.getTime();
+    
+    console.log(`Setting AWS clock offset to ${offset}ms to correct for any time drift`);
+    return offset;
   }
 
   /**

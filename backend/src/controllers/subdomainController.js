@@ -79,15 +79,23 @@ class SubdomainController {
       
       // If AWS credential is provided, update Route53
       if (awsCredentialId) {
-        const route53Updated = await awsService.updateRoute53Record(
-          awsCredentialId,
-          domain,
-          name,
-          ipAddress
-        );
-        
-        if (!route53Updated) {
-          console.warn(`Failed to update Route53 record for ${fullSubdomain}`);
+        try {
+          console.log(`Attempting to update Route53 record for ${fullSubdomain} with credential ID ${awsCredentialId}`);
+          const route53Updated = await awsService.updateRoute53Record(
+            awsCredentialId,
+            domain,
+            name,
+            ipAddress
+          );
+          
+          if (!route53Updated) {
+            console.warn(`Failed to update Route53 record for ${fullSubdomain}`);
+          } else {
+            console.log(`Successfully updated Route53 record for ${fullSubdomain}`);
+          }
+        } catch (error) {
+          console.error(`AWS Route53 error for ${fullSubdomain}:`, error.message);
+          // Continue with subdomain creation even if Route53 update fails
         }
       }
       
