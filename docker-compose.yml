@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/subdomain-manager
+      - JWT_SECRET=replace_with_secure_secret
+      - NODE_ENV=production
+    depends_on:
+      - mongodb
+    networks:
+      - app-network
+    volumes:
+      - ssl-certs:/etc/letsencrypt
+      - ./data:/app/data
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:latest
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - ssl-certs:/etc/letsencrypt
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongodb-data:
+  ssl-certs: 
