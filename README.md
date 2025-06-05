@@ -10,16 +10,29 @@ A web-based application for managing subdomains, automating SSL certificates, an
 - Automated SSL certificate issuance via Let's Encrypt
 - Secure AWS credential management
 
+## Prerequisites
+
+- Docker and Docker Compose
+  - For Ubuntu, you can install Docker with:
+    ```
+    sudo apt update
+    sudo apt install docker.io
+    sudo systemctl enable --now docker
+    sudo usermod -aG docker $USER
+    ```
+  - Recent Docker installations include Docker Compose as `docker compose` command
+
 ## Quick Start
 
 1. Clone this repository
 2. Run the startup script:
    ```
+   chmod +x start.sh
    ./start.sh
    ```
    Or manually with Docker Compose:
    ```
-   docker-compose up -d
+   docker compose up -d
    ```
 3. Access the application at `http://localhost:3000`
 
@@ -43,12 +56,12 @@ If you encounter issues with the backend service restarting repeatedly, it may b
 
 Check the logs with:
 ```
-docker-compose logs backend
+docker compose logs backend
 ```
 
 You can restart the services with:
 ```
-docker-compose restart
+docker compose restart
 ```
 
 ## Development
@@ -57,6 +70,6 @@ To modify or extend the application:
 1. Make your changes to the source code
 2. Rebuild the Docker containers with:
    ```
-   docker-compose build
-   docker-compose up -d
+   docker compose build
+   docker compose up -d
    ```
