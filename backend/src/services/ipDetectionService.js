@@ -121,6 +121,8 @@ class IpDetectionService {
    */
   checkDockerWebServer() {
     return new Promise((resolve) => {
+      console.log('Attempting to detect Docker web servers directly...');
+      
       // Try to execute docker command to list containers
       exec('docker ps --format "{{.Names}} {{.Image}}"', (error, stdout, stderr) => {
         if (error) {
@@ -147,6 +149,7 @@ class IpDetectionService {
               console.log('Subdomain Manager Nginx container detected');
               resolve({ hasWebServer: true, serverType: 'nginx' });
             } else {
+              console.log('No web server containers detected');
               resolve({ hasWebServer: false, serverType: 'unknown' });
             }
           });

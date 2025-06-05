@@ -282,6 +282,47 @@ class SubdomainController {
       res.status(500).json({ error: 'Failed to issue SSL certificate' });
     }
   }
+
+  /**
+   * Check web server status for all subdomains
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   */
+  async checkAllWebServers(req, res) {
+    try {
+      console.log('Checking web server status for all subdomains...');
+      const subdomains = await Subdomain.find();
+      const results = {};
+      
+      // Check each subdomain
+      for (const subdomain of subdomains) {
+        console.log(`Checking web server for ${subdomain.name}...`);
+        
+        // Check web server status
+        const webServerCheck = await ipDetectionService.checkWebServer(subdomain.name);
+        console.log(`Web server check result for ${subdomain.name}:`, webServerCheck);
+        
+        // Update the subdomain with web server info
+        subdomain.hasWebServer = webServerCheck.hasWebServer;
+        subdomain.webServerType = webServerCheck.serverType;
+        await subdomain.save();
+        
+        // Add to results
+        results[subdomain.name] = {
+          hasWebServer: webServerCheck.hasWebServer,
+          serverType: webServerCheck.serverType
+        };
+      }
+      
+      res.status(200).json({
+        message: 'Web server check completed for all subdomains',
+        results
+      });
+    } catch (error) {
+      console.error('Error checking web servers for all subdomains:', error);
+      res.status(500).json({ error: 'Failed to check web server status' });
+    }
+  }
 }
 
 module.exports = new SubdomainController(); 

@@ -24,4 +24,7 @@ router.post('/:id/check-webserver', subdomainController.checkWebServer);
 // POST /api/subdomains/:id/issue-certificate - Issue SSL certificate
 router.post('/:id/issue-certificate', subdomainController.issueSSLCertificate);
 
+// POST /api/subdomains/check-all-webservers - Check all subdomains for web servers
+router.post('/check-all-webservers', subdomainController.checkAllWebServers);
+
 module.exports = router; 
