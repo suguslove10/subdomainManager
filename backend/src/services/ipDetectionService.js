@@ -1,5 +1,6 @@
 const https = require('https');
 const http = require('http');
+const { exec } = require('child_process');
 
 /**
  * Service for detecting the server's public IP address
@@ -95,10 +96,63 @@ class IpDetectionService {
         result.serverType = this.detectServerType(httpResponse.headers);
         return result;
       } catch (httpError) {
-        // No web server detected
-        return result;
+        // Domain approach failed, check if we're running in Docker and try to detect web server containers
+        try {
+          console.log(`Domain-based detection failed for ${domain}, trying to detect local web servers...`);
+          const dockerResult = await this.checkDockerWebServer();
+          if (dockerResult.hasWebServer) {
+            return dockerResult;
+          }
+          
+          // No web server detected via any method
+          return result;
+        } catch (dockerError) {
+          console.log('Docker detection failed:', dockerError.message);
+          // No web server detected
+          return result;
+        }
       }
     }
+  }
+  
+  /**
+   * Check if a web server is running in Docker containers
+   * @returns {Promise<{hasWebServer: boolean, serverType: string}>}
+   */
+  checkDockerWebServer() {
+    return new Promise((resolve) => {
+      // Try to execute docker command to list containers
+      exec('docker ps --format "{{.Names}} {{.Image}}"', (error, stdout, stderr) => {
+        if (error) {
+          console.log('Error checking Docker containers:', error);
+          // Return default result if Docker command fails
+          resolve({ hasWebServer: false, serverType: 'unknown' });
+          return;
+        }
+        
+        const output = stdout.toString().trim();
+        console.log('Docker containers found:', output);
+        
+        // Check for nginx, apache, or other web server containers
+        if (output.includes('nginx')) {
+          console.log('Nginx web server detected in Docker');
+          resolve({ hasWebServer: true, serverType: 'nginx' });
+        } else if (output.includes('apache') || output.includes('httpd')) {
+          console.log('Apache web server detected in Docker');
+          resolve({ hasWebServer: true, serverType: 'apache' });
+        } else {
+          // Try to check if the nginx container from our app is running
+          exec('docker ps --filter "name=subdomainmanager-nginx" --format "{{.Names}}"', (err, out) => {
+            if (!err && out.toString().trim() !== '') {
+              console.log('Subdomain Manager Nginx container detected');
+              resolve({ hasWebServer: true, serverType: 'nginx' });
+            } else {
+              resolve({ hasWebServer: false, serverType: 'unknown' });
+            }
+          });
+        }
+      });
+    });
   }
   
   /**

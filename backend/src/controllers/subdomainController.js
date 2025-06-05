@@ -79,19 +79,43 @@ class SubdomainController {
       
       // If AWS credential is provided, update Route53
       if (awsCredentialId) {
+        console.log(`Attempting to update Route53 record for ${fullSubdomain} with credential ID ${awsCredentialId} and IP ${ipAddress}`);
+        
         try {
-          console.log(`Attempting to update Route53 record for ${fullSubdomain} with credential ID ${awsCredentialId}`);
-          const route53Updated = await awsService.updateRoute53Record(
-            awsCredentialId,
-            domain,
-            name,
-            ipAddress
-          );
+          // Try to create or update Route53 record up to 3 times
+          let route53Updated = false;
+          let attemptCount = 0;
+          const maxAttempts = 3;
+          
+          while (!route53Updated && attemptCount < maxAttempts) {
+            attemptCount++;
+            console.log(`Route53 update attempt ${attemptCount} of ${maxAttempts} for ${fullSubdomain}`);
+            
+            route53Updated = await awsService.updateRoute53Record(
+              awsCredentialId,
+              domain,
+              name,
+              ipAddress
+            );
+            
+            if (route53Updated) {
+              console.log(`Successfully updated Route53 record for ${fullSubdomain} on attempt ${attemptCount}`);
+              break;
+            } else {
+              console.warn(`Failed to update Route53 record for ${fullSubdomain} on attempt ${attemptCount}`);
+              // Wait before retrying
+              if (attemptCount < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+              }
+            }
+          }
+          
+          // Update the subdomain with Route53 status
+          newSubdomain.dnsConfigured = route53Updated;
+          await newSubdomain.save();
           
           if (!route53Updated) {
-            console.warn(`Failed to update Route53 record for ${fullSubdomain}`);
-          } else {
-            console.log(`Successfully updated Route53 record for ${fullSubdomain}`);
+            console.error(`All attempts to update Route53 record for ${fullSubdomain} failed`);
           }
         } catch (error) {
           console.error(`AWS Route53 error for ${fullSubdomain}:`, error.message);

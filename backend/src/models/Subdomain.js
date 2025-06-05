@@ -26,6 +26,10 @@ const subdomainSchema = new mongoose.Schema({
     enum: ['apache', 'nginx', 'nodejs', 'other', 'unknown'],
     default: 'unknown'
   },
+  dnsConfigured: {
+    type: Boolean,
+    default: false
+  },
   sslStatus: {
     type: String,
     enum: ['none', 'pending', 'valid', 'expired', 'error'],
