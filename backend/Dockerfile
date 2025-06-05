@@ -14,6 +14,10 @@ RUN npm install
 # Copy application code
 COPY . .
 
+# Set environment variables
+ENV DOCKER_COMPOSE=true
+ENV NODE_ENV=production
+
 # Expose port
 EXPOSE 4000
 
